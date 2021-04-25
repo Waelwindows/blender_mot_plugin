@@ -7,83 +7,75 @@ from . import mot
 
 HEIGHT_CORRECTION = 1.055
 
-def import_mot(mot):
+def import_mot(mot, name):
     bpy.ops.object.mode_set(mode='POSE')
 
     arm = bpy.context.active_object
     bones = arm.pose.bones
 
-    bpy.ops.object.mode_set(mode='OBJECT')
-    bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0))
-    target_parent = bpy.context.active_object
-    target_parent.name = "target_parent"
-    target_parent.empty_display_size = 0.1
-
-    print(f"{mot.anims.keys()}")
+    arm.animation_data_create()
+    action = bpy.data.actions.new(name=name)
+    arm.animation_data.action = action
 
     for (name, anim) in mot.anims.items():
-        if anim is None or name not in ["n_hara_cp", "kg_hara_y"]:
-        # if anim is None:
+        # if anim is None or name not in ["n_hara_cp", "kg_hara_y"]:
+        if anim is None:
             continue
         # scale = 1./3. if "cl_momo" in name else 1.;
         scale = 1
         if anim.target:
-            bone = bones[f"{name}_target"]
-            for frame in anim.target.x:
-                bone.location.x = frame.value * scale
-                index = int(frame.frame) if frame.frame else 0
-                bone.keyframe_insert(data_path="location", frame=index, index=0)    
-            for frame in anim.target.y:
-                bone.location.y = frame.value * scale
-                index = int(frame.frame) if frame.frame else 0
-                bone.keyframe_insert(data_path="location", frame=index, index=1)    
-            for frame in anim.target.z:
-                bone.location.z = frame.value * scale
-                index = int(frame.frame) if frame.frame else 0
-                bone.keyframe_insert(data_path="location", frame=index, index=2)    
-        try:
-            bone = bones[name]
-            if anim.position:
-                print(f"setting `{name}` position")
-                for frame in anim.position.x:
-                    bone.location.x = frame.value
+            for (idx, target) in enumerate([anim.target.x, anim.target.y, anim.target.z]):
+                if len(target) != 0:
+                    curve = action.fcurves.new(data_path=f'pose.bones["{name}_target"].location', index=idx)
+                    curve.keyframe_points.add(len(target))
+                    for (i, frame) in enumerate(target):
+                        index = int(frame.frame) if frame.frame else 0
+                        curve.keyframe_points[i].co = (index, frame.value)
+                        curve.keyframe_points[i].interpolation = 'LINEAR'
+        if anim.position:
+            # print(f"setting `{name}` position")
+            if len(anim.position.x) != 0:
+                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=0)
+                curve.keyframe_points.add(len(anim.position.x))
+                for (i, frame) in enumerate(anim.position.x):
                     index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="location", frame=index, index=0)    
-                for frame in anim.position.y:
-                    bone.location.z = frame.value
-                    if name == "n_hara_cp":
-                        bone.location.z -= HEIGHT_CORRECTION;
+                    curve.keyframe_points[i].co = (index, frame.value)
+                    curve.keyframe_points[i].interpolation = 'LINEAR'
+            if len(anim.position.y) != 0:
+                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=2)
+                curve.keyframe_points.add(len(anim.position.y))
+                for (i, frame) in enumerate(anim.position.y):
                     index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="location", frame=index, index=2)    
-                for frame in anim.position.z:
-                    bone.location.y = -1 * frame.value
+                    value = frame.value - HEIGHT_CORRECTION if name == "n_hara_cp" else frame.value
+                    curve.keyframe_points[i].co = (index, value)
+                    curve.keyframe_points[i].interpolation = 'LINEAR'
+            if len(anim.position.z) != 0:
+                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=1)
+                curve.keyframe_points.add(len(anim.position.z))
+                for (i, frame) in enumerate(anim.position.z):
                     index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="location", frame=index, index=1)    
+                    curve.keyframe_points[i].co = (index, -1*frame.value)
+                    curve.keyframe_points[i].interpolation = 'LINEAR'
 
-            if anim.rotation:
-                print(f"setting `{name}` rotation")
-
+        if anim.rotation:
+            # print(f"setting `{name}` rotation")
+            
+            try:
+                bone = bones[name]
                 bone.rotation_mode = 'XYZ'
-                # print(f"rotation x: {len(anim.rotation.x)}")
-                for frame in anim.rotation.x:
-                    bone.rotation_euler.x = frame.value
-                    index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="rotation_euler", frame=index, index=0)    
-                # print(f"rotation y: {len(anim.rotation.y)}")
-                for frame in anim.rotation.z:
-                    bone.rotation_euler.y = frame.value
-                    index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="rotation_euler", frame=index, index=1)    
-                # print(f"rotation z: {len(anim.rotation.z)}")
-                for frame in anim.rotation.y:
-                    bone.rotation_euler.z = frame.value
-                    index = int(frame.frame) if frame.frame else 0
-                    bone.keyframe_insert(data_path="rotation_euler", frame=index, index=2)    
-        except KeyError:
-            continue
-            # print(f"`{name}` not found in rig, but in mot. Ignoring")
+            except KeyError:
+                print(F"Couldn't set `{name}`'s rotation mode. Bone not in rig, ignoring")
+            anims = [anim.rotation.x, anim.rotation.z, anim.rotation.y]
+            for (idx, target) in enumerate(anims):
+                if len(target) != 0:
+                    curve = action.fcurves.new(data_path=f'pose.bones["{name}"].rotation_euler', index=idx)
+                    curve.keyframe_points.add(len(target))
+                    for (i, frame) in enumerate(target):
+                        index = int(frame.frame) if frame.frame else 0
+                        frame = -1 * frame.value if idx == 1 else frame.value
+                        curve.keyframe_points[i].co = (index, frame)
+                        curve.keyframe_points[i].interpolation = 'LINEAR'
 
-    target_parent.rotation_euler.x += 1.57079632679
     bpy.ops.object.mode_set(mode='OBJECT')
 
     print("Imported a motion .bin successfully")

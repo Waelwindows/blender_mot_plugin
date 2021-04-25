@@ -23,6 +23,7 @@ import bpy
 from bpy.props import (
         StringProperty,
         BoolProperty,
+        IntProperty,
         FloatProperty,
         EnumProperty,
         CollectionProperty,
@@ -60,11 +61,24 @@ class ImportMOT(bpy.types.Operator, ImportHelper):
             subtype="FILE_PATH",
             )
 
+    import_all: BoolProperty(
+            name="Import all motions",
+            description="Imports all motions as different actions",
+            )
+
+    mot_idx: IntProperty(
+            name="Motion Index",
+            description="Which motion within the motion set to import",
+            min=0,
+            subtype="UNSIGNED",
+            )
+
     def draw(self, context):
         pass
 
     def execute(self, context):
         from . import mot
+        from . import diva_db
         from . import import_mot
         import os
 
@@ -73,8 +87,23 @@ class ImportMOT(bpy.types.Operator, ImportHelper):
             dirname = os.path.dirname(self.filepath)
             for file in self.files:
                 path = os.path.join(dirname, file.name)
-                mot = mot.read_mot(path, self.mot_db_path, self.bone_db_path)
-                import_mot.import_mot(mot)
+                mots = mot.read_mot(path, self.mot_db_path, self.bone_db_path)
+                mot_db = diva_db.mot.read_db(self.mot_db_path)
+                set_name = file.name[-9:-4]
+                mot_names = []
+                for set in mot_db.sets.values():
+                    if set.name == set_name:
+                        mot_names = [x for x in set.mots.values()]
+                        print(set.name)
+                if self.import_all:
+                    for (i, mot) in enumerate(mots):
+                        try:
+                            name = mot_names[i]
+                        except IndexError:
+                            name = f"{file.name}_{i}"
+                        import_mot.import_mot(mot, name)
+                else:
+                    import_mot.import_mot(mots[self.mot_idx], f"{file.name}_{self.mot_idx}")
             ret = {'FINISHED'}
             return ret
 
@@ -101,6 +130,10 @@ class MOT_PT_import_include(bpy.types.Panel):
 
         layout.prop(operator, "mot_db_path")
         layout.prop(operator, "bone_db_path")
+        layout.prop(operator, "import_all")
+        sub = layout.column()
+        sub.enabled = not operator.import_all
+        sub.prop(operator, "mot_idx")
 
 def menu_func_import(self, context):
     self.layout.operator(ImportMOT.bl_idname, text="SEGA Motion Set (mot_*.bin)")
