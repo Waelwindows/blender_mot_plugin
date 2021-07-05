@@ -88,7 +88,7 @@ class ImportMOT(bpy.types.Operator, ImportHelper):
             for file in self.files:
                 path = os.path.join(dirname, file.name)
                 mots = mot.read_mot(path, self.mot_db_path, self.bone_db_path)
-                mot_db = diva_db.mot.read_db(self.mot_db_path)
+                mot_db = diva_db.motset.read_db(self.mot_db_path)
                 set_name = file.name[-9:-4]
                 mot_names = []
                 for set in mot_db.sets.values():
