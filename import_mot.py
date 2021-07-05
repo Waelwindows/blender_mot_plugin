@@ -19,6 +19,8 @@ def import_mot(mot, name):
 
     for (name, anim) in mot.anims.items():
         # if anim is None or name not in ["n_hara_cp", "kg_hara_y"]:
+        # if "gbl" not in name:
+        #     continue
         if anim is None:
             continue
         # scale = 1./3. if "cl_momo" in name else 1.;
@@ -34,15 +36,19 @@ def import_mot(mot, name):
                         curve.keyframe_points[i].interpolation = 'LINEAR'
         if anim.position:
             # print(f"setting `{name}` position")
+            if name == "gblctr":
+                path = "location"
+            else:
+              	path = f'pose.bones["{name}"].location'
             if len(anim.position.x) != 0:
-                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=0)
+                curve = action.fcurves.new(data_path=path, index=0)
                 curve.keyframe_points.add(len(anim.position.x))
                 for (i, frame) in enumerate(anim.position.x):
                     index = int(frame.frame) if frame.frame else 0
                     curve.keyframe_points[i].co = (index, frame.value)
                     curve.keyframe_points[i].interpolation = 'LINEAR'
             if len(anim.position.y) != 0:
-                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=2)
+                curve = action.fcurves.new(data_path=path, index=2)
                 curve.keyframe_points.add(len(anim.position.y))
                 for (i, frame) in enumerate(anim.position.y):
                     index = int(frame.frame) if frame.frame else 0
@@ -50,7 +56,7 @@ def import_mot(mot, name):
                     curve.keyframe_points[i].co = (index, value)
                     curve.keyframe_points[i].interpolation = 'LINEAR'
             if len(anim.position.z) != 0:
-                curve = action.fcurves.new(data_path=f'pose.bones["{name}"].location', index=1)
+                curve = action.fcurves.new(data_path=path, index=1)
                 curve.keyframe_points.add(len(anim.position.z))
                 for (i, frame) in enumerate(anim.position.z):
                     index = int(frame.frame) if frame.frame else 0
